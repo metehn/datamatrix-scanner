@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QR Tarayıcı</title>
+</head>
+<body>
+<h2>QR / DataMatrix Tarayıcı</h2>
+<p id="status">Bekleniyor...</p>
+<style>
+  #reader video { transform: scaleX(-1); }
+</style>
+<div id="reader" style="width:400px"></div>
+<p>Son okunan: <b id="result">-</b></p>
+<p>Toplam: <span id="count">0</span></p>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+  var ws = new WebSocket('ws://' + location.host + '/ws/scanner');
+  ws.onopen  = function() { document.getElementById('status').textContent = 'Sunucuya bağlandı'; };
+  ws.onclose = function() { document.getElementById('status').textContent = 'Bağlantı kesildi'; };
+
+  var count = 0, last = '', lastTime = 0;
+
+  var scanner = new Html5Qrcode("reader");
+  scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: [
+              Html5QrcodeSupportedFormats.DATA_MATRIX,
+              Html5QrcodeSupportedFormats.QR_CODE,
+              Html5QrcodeSupportedFormats.CODE_128,
+              Html5QrcodeSupportedFormats.EAN_13
+            ]},
+          function(val) {
+            var now = Date.now();
+            if (val === last && now - lastTime < 2000) return;
+            last = val; lastTime = now; count++;
+            document.getElementById('result').textContent = val;
+            document.getElementById('count').textContent = count;
+            document.getElementById('status').textContent = 'Okundu!';
+            if (ws.readyState === 1) ws.send(val);
+          },
+          function(err) {}
+  ).catch(function(e) {
+    document.getElementById('status').textContent = 'Hata: ' + e;
+  });
+</script>
+</body>
+</html>
